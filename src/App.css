@@ -1,0 +1,60 @@
+.App {
+  background-color: #282c34;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.modal-overlay {
+  z-index: 1000;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.modal {
+  position: fixed;
+  z-index: 1010;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #707070;
+}
+.peers {
+  display: flex;
+  flex-direction: column;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  min-height: 100vh;
+  justify-content: center;
+  min-height: 80vh;
+  align-items: center;
+}
+.self {
+  display: flex;
+  flex-direction: column;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  min-height: 100vh;
+  justify-content: center;
+  min-height: 20vh;
+  align-items: center;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+.remote-session-input{
+  width: 0px;
+  height: 0px;
+  overflow: hidden;
+  visibility: hidden;
+}
