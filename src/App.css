@@ -8,10 +8,61 @@
   min-height: 100vh;
   justify-content: center;
 }
+button {
+  margin: 5px;
+}
+button.sessionIcon {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+  text-align: center;
+  border-radius: 50%;
+  display:block;
+  height: 120px;
+  font-size: calc(10px + 1vmin);
+  width: 120px;
+}
 
+.presence{
+  align-content: space-around;
+  justify-content: start;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  flex: 1;
+  justify-content: center;
+
+}
+.grid > .block {
+  flex: 1 1 auto;
+  margin: 20px;
+  padding: 20px;
+}
+
+ul.receivedFiles li {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+ul.receivedFiles li a{
+  color: white;
+}
+
+.blockContent {
+  margin: 20px;
+  padding: 20px;
+}
+
+.grid .divider {
+  width: 1px;
+  background: white;
+  margin: 20px;
+}
 .modal-overlay {
   z-index: 1000;
-
   position: fixed;
   top: 0;
   left: 0;
@@ -26,16 +77,12 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: #707070;
+  margin: 10px;
+  padding: 10px;
+  justify-content: center;
 }
 .peers {
-  display: flex;
-  flex-direction: column;
-  font-size: calc(10px + 2vmin);
-  color: white;
-  min-height: 100vh;
-  justify-content: center;
-  min-height: 80vh;
-  align-items: center;
+  justify-content: space-around;
 }
 .self {
   display: flex;

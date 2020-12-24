@@ -1,4 +1,5 @@
 import Signaler, { SessionLeftEvent } from "./signaler";
+import { Offer } from './types';
 
 export class MessageReceivedEvent extends Event {
   constructor(public sender: string, public data: string) {
@@ -7,7 +8,7 @@ export class MessageReceivedEvent extends Event {
 }
 
 export class AuthorizationRequestedEvent extends Event {
-  constructor(public sender: string, public resolve: Function, public reject: Function) {
+  constructor(public sender: string, public filename: string, public resolve: Function, public reject: Function) {
     super("authorization_requested");
   }
 }
@@ -33,10 +34,11 @@ export class ConnectionReadyEvent extends ConnectionEvent {
 export class Conn extends EventTarget {
   private conn: RTCPeerConnection;
   private chan: RTCDataChannel;
-  constructor(private signaler: Signaler, private id: string, private remoteId: string) {
+  constructor(private signaler: Signaler, private id: string, private remoteId: string, public filename: string) {
     super();
     this.signaler = signaler;
     this.id = id;
+    this.filename = filename;
     this.remoteId = remoteId;
     const defaults = {
       config: {
@@ -74,10 +76,11 @@ export class Conn extends EventTarget {
     const desc = await this.conn.createOffer();
     this.conn.setLocalDescription(desc);
     console.debug(this.remoteId, 'sending description')
-    return this.signaler.sendDescription(this.remoteId, desc);
+    return this.signaler.sendDescription(this.remoteId, desc, this.filename);
   }
   close() {
     this.chan.close();
+    this.conn.close()
   }
   async ready(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -146,8 +149,8 @@ export class Dialer extends EventTarget {
     }) as EventListener)
     this.registered = true;
   }
-  async confirmOffer(from: string, desc: RTCSessionDescriptionInit) {
-    const conn = new Conn(this.signaler, this.id, from);
+  async confirmOffer(from: string, offer: Offer) {
+    const conn = new Conn(this.signaler, this.id, from, offer.filename);
     conn.addEventListener('connection_closed', (() => {
       this.removeConn(from);
     }) as EventListener);
@@ -157,16 +160,16 @@ export class Dialer extends EventTarget {
     }) as EventListener);
 
     this.conns.push({ from: from, to: this.id, conn: conn });
-    return conn.informOffer(desc);
+    return conn.informOffer(offer.desc);
   }
-  async informOffer(from: string, desc: RTCSessionDescriptionInit) {
-    let establishedConn = this.conns.find(elt => elt.from === from);
+  async informOffer(from: string, offer: Offer) {
+    let establishedConn = this.conns.find(elt => elt.from === from && elt.conn.filename === offer.filename);
     if (establishedConn !== undefined) { return }
     try {
       await new Promise((resolve, reject) => {
-        this.dispatchEvent(new AuthorizationRequestedEvent(from, resolve, reject));
+        this.dispatchEvent(new AuthorizationRequestedEvent(from, offer.filename, resolve, reject));
       })
-      return this.confirmOffer(from, desc);
+      return this.confirmOffer(from, offer);
     } catch {
       throw new Error('permission denied')
     }
@@ -196,14 +199,14 @@ export class Dialer extends EventTarget {
       .filter((elt) => elt.to === from)
       .map(elt => elt.conn.addIceCandidate(candidate)));
   }
-  async dial(remoteId: string) {
+  async dial(remoteId: string, filename: string) {
     if (!this.registered) {
       throw new Error("dialer not registered")
     }
-    let establishedConn = this.conns.find(elt => elt.to === remoteId);
+    let establishedConn = this.conns.find(elt => elt.to === remoteId && elt.conn.filename === filename);
     if (establishedConn !== undefined) { return establishedConn.conn }
     console.debug('conn to', remoteId, 'not found: dialing a new one')
-    const c = new Conn(this.signaler, this.id, remoteId);
+    const c = new Conn(this.signaler, this.id, remoteId, filename);
     this.conns.push({ from: this.id, to: remoteId, conn: c });
     c.addEventListener('connection_closed', (() => {
       this.removeConn(remoteId);

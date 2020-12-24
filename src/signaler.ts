@@ -27,6 +27,10 @@ interface session {
   id: string;
   name: string;
 }
+
+const brokerURL = 'wss://broker.iot.cloud.vx-labs.net/mqtt';
+//const brokerURL = 'ws://localhost:8080/mqtt';
+
 export default class Signaler extends EventTarget {
   private dialer: any;
   private mqtt: mqtt.MqttClient;
@@ -44,8 +48,8 @@ export default class Signaler extends EventTarget {
     super();
     const mqttPresencePrefix = `sessions/`;
     // chrome refuses to connect without this, I do not understand why.
-    try { fetch("https://broker.iot.cloud.vx-labs.net/mqtt") } catch { }
-    this.mqtt = mqtt.connect("wss://broker.iot.cloud.vx-labs.net/mqtt", {
+    try { fetch('https://broker.iot.cloud.vx-labs.net/mqtt') } catch { }
+    this.mqtt = mqtt.connect(brokerURL, {
       username: "julien@bonachera.fr/pushr/browser",
       password: "VeryPasswordMuchSecureWow",
       connectTimeout: 30 * 1000,
@@ -108,7 +112,7 @@ export default class Signaler extends EventTarget {
               {
                 const msg = JSON.parse(payload.toString());
                 this.dialer
-                  .informOffer(msg.from, msg.desc)
+                  .informOffer(msg.from, { desc: msg.desc, filename: msg.filename })
                   .then((resp: any) => {
                     this.mqtt.publish(
                       `sessions/${msg.from}/description_answer`,
@@ -179,11 +183,11 @@ export default class Signaler extends EventTarget {
       );
     });
   }
-  async sendDescription(to: string, desc: any): Promise<void> {
+  async sendDescription(to: string, desc: RTCSessionDescriptionInit, filename: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.mqtt.publish(
         `sessions/${to}/description`,
-        JSON.stringify({ from: this.id, desc: desc }),
+        JSON.stringify({ from: this.id, desc: desc, filename: filename }),
         { qos: qosLevel },
         (err) => {
           if (err) {

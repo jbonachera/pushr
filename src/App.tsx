@@ -5,8 +5,7 @@ import adjectives from "./assets/adjectives.json";
 import { Dialer } from "./dialer";
 import { Presence } from "./Presence";
 import Signaler from "./signaler";
-import { AuthorizationModal } from "./AuthorizationModal";
-import { Files } from "./Files";
+import { Files } from './Files';
 
 
 const getID = (): string => {
@@ -44,21 +43,21 @@ dialer.register();
 function App() {
   return (
     <div className="App">
-      <AuthorizationModal
-        signaler={signaler}
-        dialer={dialer}
-      ></AuthorizationModal>
-      <div className="peers">
-        <Presence
-          dialer={dialer}
-          friendlyName={name}
-          signaler={signaler}
-          id={id}
-        />
+      <div className='grid'>
+        <div className="peers block">
+          <Presence
+            dialer={dialer}
+            friendlyName={name}
+            signaler={signaler}
+            id={id}
+          />
+        </div>
+        <div className="block">
+          <Files dialer={dialer} />
+        </div>
       </div>
       <div className="self">
         <div>I am {name}</div>
-        <Files dialer={dialer}></Files>
       </div>
     </div>
   );

@@ -35,17 +35,23 @@ export const Presence = (props: PresenceProps) => {
   }, [props]);
 
   return (
-    <div className="presence">
-      {sessions
-        .filter((session) => session.id !== props.id)
-        .map((session) => (
-          <RemoteSession
-            key={session.id}
-            dialer={props.dialer}
-            sessionId={session.id}
-            friendlyName={session.friendlyName}
-          />
-        ))}
+    <div>
+      <div>Peers</div>
+      <div className="grid">
+        {sessions
+          .filter((session) => session.id !== props.id)
+          .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName))
+          .map((session) => (
+            <div className="block" key={session.id}>
+              <RemoteSession
+                dialer={props.dialer}
+                signaler={props.signaler}
+                sessionId={session.id}
+                friendlyName={session.friendlyName}
+              />
+            </div>
+          ))}
+      </div>
     </div>
   );
 };

@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
-import { Conn, Dialer } from "./dialer";
+import React, { useEffect, useState } from "react";
+import { Conn, Dialer, } from "./dialer";
 import { Metadata, Payload } from "./types";
+import Signaler from './signaler';
 
 export interface RemoteSessionProps {
   sessionId: string;
   friendlyName: string;
   dialer: Dialer;
+  signaler: Signaler;
 }
 
+
+const chunkSize = 1000;
 interface progressState {
   conn?: Conn;
   value: string;
@@ -16,8 +20,9 @@ interface progressState {
   total: number;
 }
 
+
 const percentage = (total: number, left: number): number =>
-  (((total - left) / total) * 100);
+  total === 0 ? 100 : (((total - left) / total) * 100);
 
 const encodeBlob = (blob: Blob): Promise<string> => {
   return new Promise((resolve) => {
@@ -31,7 +36,6 @@ const encodeBlob = (blob: Blob): Promise<string> => {
   });
 };
 
-const chunkSize = 1000;
 
 export const RemoteSession = (props: RemoteSessionProps) => {
   const [filename, setFilename] = useState<string>("");
@@ -44,9 +48,12 @@ export const RemoteSession = (props: RemoteSessionProps) => {
     value: "",
   });
 
+
   const handleSubmit = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleChange(e.target.files);
   };
+
+
   const handleChange = async (files: FileList | null) => {
     if (files === null || files.length === 0) {
       setFilename("");
@@ -57,15 +64,15 @@ export const RemoteSession = (props: RemoteSessionProps) => {
     setFilename(file.name);
     await send({ name: file.name, size: file.size }, file);
   };
-
   useEffect(() => {
-    if (!progressState.conn){ return }
+    if (!progressState.conn) { return }
     setProgress(percentage(progressState.total, progressState.value.length));
     if (progressState.value.length === 0) {
       progressState.conn.send(
         JSON.stringify(
           new Payload(
             progressState.chunkNumber,
+            progressState.total / chunkSize,
             progressState.metadata,
             "",
             true
@@ -73,6 +80,7 @@ export const RemoteSession = (props: RemoteSessionProps) => {
         )
       );
       console.log("send complete");
+      progressState.conn.close()
       return;
     }
     const chunk = progressState.value.slice(0, chunkSize);
@@ -80,6 +88,7 @@ export const RemoteSession = (props: RemoteSessionProps) => {
       JSON.stringify(
         new Payload(
           progressState.chunkNumber,
+          progressState.total / chunkSize,
           progressState.metadata,
           chunk,
           false
@@ -96,7 +105,7 @@ export const RemoteSession = (props: RemoteSessionProps) => {
   }, [progressState]);
 
   const send = async (metadata: Metadata, data: Blob) => {
-    const conn = await props.dialer.dial(props.sessionId);
+    const conn = await props.dialer.dial(props.sessionId, metadata.name);
     await conn.ready();
     const b64 = await encodeBlob(data);
     setProgressState({
@@ -108,20 +117,24 @@ export const RemoteSession = (props: RemoteSessionProps) => {
     });
   };
 
+
+
   return (
-    <label htmlFor={props.sessionId}>
-      <div>{props.friendlyName}</div>
-      {filename !== "" ? (
-        <div>
-          {filename} ({progress.toFixed(2)}%)
-        </div>
-      ) : null}
-      <input
-        type="file"
-        className="remote-session-input"
-        id={props.sessionId}
-        onChange={handleSubmit}
-      />
-    </label>
+    <button className="sessionIcon"    >
+      <label htmlFor={props.sessionId}>
+        {props.friendlyName}
+        {filename !== "" && progress < 100 ? (
+          <div>
+            {filename} ({progress.toFixed(2)}%)
+          </div>
+        ) : null}
+        <input
+          type="file"
+          className="remote-session-input"
+          id={props.sessionId}
+          onChange={handleSubmit}
+        />
+      </label>
+    </button>
   );
 };

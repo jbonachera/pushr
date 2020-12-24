@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialer, MessageReceivedEvent } from "./dialer";
+import { AuthorizationRequestedEvent, Dialer, MessageReceivedEvent } from "./dialer";
 import { Payload } from "./types";
 
 export interface FileProps {
@@ -11,12 +11,23 @@ interface receivedFile {
   from: string;
   size: number;
   value: string;
+  chunkTotalCount: number;
   chunks: { no: number; value: string }[];
   complete: boolean;
 }
 
+interface fileTransfertRequest {
+  filename: string;
+  allow?: () => void;
+  deny?: () => void;
+}
+
+const percentage = (total: number, left: number): number =>
+  total === 0 ? 100 : (((total - left) / total) * 100);
+
 export const Files = (props: FileProps) => {
-  const [state, setState] = useState<receivedFile[]>([]);
+  const [receivedFiles, setReceivedFiles] = useState<receivedFile[]>([]);
+  const [fileTransfertRequests, setfileTransfertRequests] = useState<fileTransfertRequest[]>([]);
 
   useEffect(() => {
     props.dialer.addEventListener("message_received", ((
@@ -25,31 +36,36 @@ export const Files = (props: FileProps) => {
       try {
         const payload = JSON.parse(ev.data) as Payload;
 
-        setState((state: receivedFile[]) => {
+        setReceivedFiles((state: receivedFile[]) => {
           const files = state.slice();
           const old = files.find(
             (elt) =>
               elt.from === ev.sender && elt.name === payload.metadata.name
           );
           if (old !== undefined) {
-            if (payload.end) {
-              old.value = old.chunks
-                .sort((a, b) => a.no - b.no)
-                .reduce((acc, cur) => acc + cur.value, "");
-              old.complete = true;
+            if (old.chunkTotalCount === 0) {
+              old.chunkTotalCount = payload.chunkTotalCount;
+              old.chunks = [{ no: payload.chunkNumber, value: payload.value }];
+              old.size = payload.metadata.size;
             } else {
-              //console.log("appending chunk", payload.chunkNumber);
-              if (!old.chunks.some((elt) => elt.no === payload.chunkNumber)) {
-                old.chunks = old.chunks.concat({
-                  no: payload.chunkNumber,
-                  value: payload.value,
-                });
+              if (payload.end) {
+                old.value = old.chunks
+                  .sort((a, b) => a.no - b.no)
+                  .reduce((acc, cur) => acc + cur.value, "");
+                old.complete = true;
+              } else {
+                if (!old.chunks.some((elt) => elt.no === payload.chunkNumber)) {
+                  old.chunks = old.chunks.concat({
+                    no: payload.chunkNumber,
+                    value: payload.value,
+                  });
+                }
               }
             }
           } else {
-            console.log("creating chunk", payload.chunkNumber);
             return files.concat({
               from: ev.sender,
+              chunkTotalCount: payload.chunkTotalCount,
               chunks: [{ no: payload.chunkNumber, value: payload.value }],
               value: "",
               size: payload.metadata.size,
@@ -63,18 +79,76 @@ export const Files = (props: FileProps) => {
         console.log("failed:", err);
       }
     }) as EventListener);
-  }, [props.dialer]);
+  }, [props]);
+
+
+  useEffect(() => {
+    props.dialer.addEventListener("authorization_requested", ((
+      ev: AuthorizationRequestedEvent
+    ) => {
+      setfileTransfertRequests((requests) => {
+        if (requests.some((elt) => elt.filename === ev.filename)) { return requests }
+        return requests.concat({
+          filename: ev.filename,
+          allow: () => {
+            setReceivedFiles((files) => files.concat({
+              from: ev.sender,
+              chunkTotalCount: 0,
+              chunks: [],
+              complete: false,
+              value: "",
+              name: ev.filename,
+              size: 0,
+            }))
+            setfileTransfertRequests([]);
+            ev.resolve()
+          },
+          deny: () => {
+            setfileTransfertRequests([]);
+            ev.reject();
+          },
+        })
+      })
+    }) as EventListener);
+  }, [props]);
+
+
+
+  const authorization = (requests: fileTransfertRequest[]) =>
+    requests.map((request) =>
+    (<li key={request.filename}>
+      {request.filename}
+      <button onClick={request.allow}>Accept</button>
+      <button onClick={request.deny}>Refuse</button>
+    </li>)
+    );
+
+
 
   return (
     <div>
-      Files:{" "}
-      {state
-        .filter((elt) => elt.complete)
-        .map((elt) => (
-          <a download={elt.name} href={elt.value} key={elt.from + elt.name}>
-            {elt.name}
-          </a>
-        ))}
+      <div>Received Files</div>
+      <div>
+        <ul className="receivedFiles blockContent">
+          {authorization(fileTransfertRequests)}
+          {receivedFiles
+            .filter((elt) => !elt.complete)
+            .map((elt) => (
+              <li key={elt.from + elt.name}>
+                {elt.name} ({(100 - percentage(elt.chunkTotalCount, elt.chunks.length)).toFixed(2)}%)
+              </li>
+            ))}
+          {receivedFiles
+            .filter((elt) => elt.complete)
+            .map((elt) => (
+              <li key={elt.from + elt.name}>
+                <a download={elt.name} href={elt.value}>
+                  {elt.name}
+                </a>
+              </li>
+            ))}
+        </ul>
+      </div>
     </div>
   );
 };
