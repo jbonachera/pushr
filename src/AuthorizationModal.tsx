@@ -39,10 +39,10 @@ export const AuthorizationModal = (props: AuthorizationModalProps) => {
   return !state.show ? null : (
     <div className="modal-overlay">
       <div className="modal">
-        <div>{state.from} requested authorization.</div>
+        <div>{state.from} wants to send you a file.</div>
         <div>
-          <button onClick={state.allow}>Allow</button>
-          <button onClick={state.deny}>Deny</button>
+          <button onClick={state.allow}>Accept</button>
+          <button onClick={state.deny}>Refuse</button>
         </div>
       </div>
     </div>
